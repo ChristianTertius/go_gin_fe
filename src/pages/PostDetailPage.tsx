@@ -4,6 +4,7 @@ import toast from 'react-hot-toast'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useEffect, useState } from 'react'
 
 import { fetchPostById, likeOrUnlikePostRequest, createCommentRequest, likeOrUnlikeCommentRequest } from '../api/posts'
 import { Panel } from '../components/Panel'
@@ -13,6 +14,7 @@ import { Textarea } from '../components/ui/Textarea'
 import { useAuth } from '../context/AuthContext'
 import { getErrorMessage } from '../lib/api'
 import { timeAgo } from '../utils/format'
+import { HeartIcon } from '../components/icons/Heart'
 
 const commentSchema = z.object({ content: z.string().min(1, 'Komentar tidak boleh kosong') })
 
@@ -22,6 +24,8 @@ export const PostDetailPage = () => {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { isAuthenticated } = useAuth()
+  const [likedPost, setLikedPost] = useState(false)
+  const [likedComments, setLikedComments] = useState<Set<number>>(new Set())
 
   const { data: post, isLoading, isError, refetch } = useQuery({
     queryKey: ['post-detail', id],
@@ -29,9 +33,15 @@ export const PostDetailPage = () => {
     enabled: Boolean(id),
   })
 
+  useEffect(() => {
+    setLikedPost(false)
+    setLikedComments(new Set())
+  }, [id])
+
   const likePostMutation = useMutation({
     mutationFn: () => likeOrUnlikePostRequest({ post_id: id }),
     onSuccess: async () => {
+      setLikedPost((prev) => !prev)
       await queryClient.invalidateQueries({ queryKey: ['post-detail', id] })
       await queryClient.invalidateQueries({ queryKey: ['posts'] })
     },
@@ -51,7 +61,13 @@ export const PostDetailPage = () => {
 
   const likeCommentMutation = useMutation({
     mutationFn: likeOrUnlikeCommentRequest,
-    onSuccess: async () => {
+    onSuccess: async (_data, variables) => {
+      setLikedComments((prev) => {
+        const next = new Set(prev)
+        if (next.has(variables.comment_id)) next.delete(variables.comment_id)
+        else next.add(variables.comment_id)
+        return next
+      })
       await queryClient.invalidateQueries({ queryKey: ['post-detail', id] })
     },
     onError: (error) => toast.error(getErrorMessage(error)),
@@ -96,14 +112,19 @@ export const PostDetailPage = () => {
             <p className="text-xs uppercase tracking-[3px] text-cyan-200/80">{post.username}</p>
             <p className="text-sm text-slate-400">{timeAgo(post.created_at)}</p>
           </div>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => handleProtected(() => likePostMutation.mutate())}
-            loading={likePostMutation.isPending}
-          >
-            Suka / Batal Suka ({post.like_count})
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => handleProtected(() => likePostMutation.mutate())}
+              loading={likePostMutation.isPending}
+              className="aspect-square w-11 p-0"
+              aria-label="Suka atau batal suka"
+            >
+              <HeartIcon className="h-5 w-5 text-rose-200" filled={likedPost} />
+            </Button>
+            <span className="text-sm text-slate-200">{post.like_count}</span>
+          </div>
         </div>
 
         <h1 className="mt-4 text-3xl font-bold text-white">{post.title}</h1>
@@ -151,12 +172,16 @@ export const PostDetailPage = () => {
                 </div>
                 <button
                   type="button"
-                  className="text-cyan-200 hover:text-white"
+                  className={
+                    'flex items-center gap-2 rounded-full border border-white/10 px-3 py-1 text-cyan-200 transition hover:border-cyan-300 hover:text-white'
+                  }
                   onClick={() =>
                     handleProtected(() => likeCommentMutation.mutate({ comment_id: comment.id }))
                   }
+                  aria-label="Suka komentar"
                 >
-                  Suka ({comment.like_count})
+                  <HeartIcon className="h-4 w-4" filled={likedComments.has(comment.id)} />
+                  <span className="text-xs text-slate-100">{comment.like_count}</span>
                 </button>
               </div>
               <p className="mt-2 whitespace-pre-line text-slate-100">{comment.content}</p>

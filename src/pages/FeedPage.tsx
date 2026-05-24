@@ -29,6 +29,7 @@ const postSchema = z.object({
 
 export const FeedPage = () => {
   const [page, setPage] = useState(1)
+  const [likedPosts, setLikedPosts] = useState<Set<number>>(new Set())
   const limit = 6
   const queryClient = useQueryClient()
   const navigate = useNavigate()
@@ -54,7 +55,13 @@ export const FeedPage = () => {
 
   const likeMutation = useMutation({
     mutationFn: likeOrUnlikePostRequest,
-    onSuccess: async () => {
+    onSuccess: async (_, variables) => {
+      setLikedPosts((prev) => {
+        const next = new Set(prev)
+        if (next.has(variables.post_id)) next.delete(variables.post_id)
+        else next.add(variables.post_id)
+        return next
+      })
       await queryClient.invalidateQueries({ queryKey: ['posts'] })
       await queryClient.invalidateQueries({ queryKey: ['post-detail'] })
     },
@@ -202,6 +209,7 @@ export const FeedPage = () => {
                 : undefined
             }
             canEdit={user?.username === post.username}
+            liked={likedPosts.has(post.id)}
           />
         ))}
       </div>

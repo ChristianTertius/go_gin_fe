@@ -4,6 +4,7 @@ import { Button } from './ui/Button'
 import type { Post } from '../types'
 import { timeAgo } from '../utils/format'
 import { cn } from '../utils/cn'
+import { HeartIcon } from './icons/Heart'
 
 type PostCardProps = {
   post: Post
@@ -11,9 +12,10 @@ type PostCardProps = {
   onDelete?: () => void
   canEdit?: boolean
   compact?: boolean
+  liked?: boolean
 }
 
-export const PostCard = ({ post, onLike, onDelete, canEdit, compact = false }: PostCardProps) => {
+export const PostCard = ({ post, onLike, onDelete, canEdit, compact = false, liked = false }: PostCardProps) => {
   return (
     <Panel className="group relative overflow-hidden p-5 sm:p-6">
       <div className="absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-40" />
@@ -49,8 +51,20 @@ export const PostCard = ({ post, onLike, onDelete, canEdit, compact = false }: P
       </div>
 
       <div className="mt-5 flex flex-wrap items-center gap-3">
-        <Button variant="secondary" size="sm" onClick={onLike}>
-          Suka / Batal Suka
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={onLike}
+          className={cn(
+            'aspect-square w-11 p-0 border border-white/10',
+            liked ? 'bg-rose-500/20 hover:bg-rose-500/30' : '',
+          )}
+          aria-label="Suka atau batal suka"
+        >
+          <HeartIcon
+            className={cn('h-5 w-5 text-rose-200', liked ? 'text-rose-300' : '')}
+            filled={liked}
+          />
         </Button>
         <Link
           to={`/posts/${post.id}`}
